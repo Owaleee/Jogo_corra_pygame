@@ -3,62 +3,73 @@ import random
 
 pygame.init()
 
-LARGURA, ALTURA = 800, 600
+LARGURA, ALTURA = 1366, 720
 tela = pygame.display.set_mode((LARGURA, ALTURA))
 pygame.display.set_caption("Corra Game")
 
-PRETO =(0, 0, 0)
+PRETO = (0, 0, 0)
 BRANCO = (255, 255, 255)
-VERDE = (0, 255, 0)
-VERMELHO = (255, 0, 0)
 AZUL = (0, 0, 255)
 
 fonte = pygame.font.SysFont(None, 36)
 
 PERSONAGEM_LARGURA, PERSONAGEM_ALTURA = 50, 50
+
+# Carregue a imagem do personagem
+imagem_personagem = pygame.image.load('Player.png')
+imagem_personagem = pygame.transform.scale(imagem_personagem, (PERSONAGEM_LARGURA, PERSONAGEM_ALTURA))
 personagem = pygame.Rect(LARGURA // 2, ALTURA // 2, PERSONAGEM_LARGURA, PERSONAGEM_ALTURA)
-personagem_cor= VERDE
+
 poder_personagem = 1
 velocidade_personagem = 5
 
 INIMIGO_LARGURA, INIMIGO_ALTURA = 50, 50
-inimigo = pygame.Rect(random.randint(0, LARGURA - INIMIGO_LARGURA), random.randint(0, ALTURA - INIMIGO_ALTURA), INIMIGO_LARGURA, INIMIGO_ALTURA)
-poder_inimigo = poder_personagem + 1
-velocidade_inimigo = 3
+imagem_inimigo = pygame.image.load('Inimigo.png')
+imagem_inimigo = pygame.transform.scale(imagem_inimigo, (INIMIGO_LARGURA, INIMIGO_ALTURA))
 
 ITEM_LARGURA, ITEM_ALTURA = 30, 30
 item = pygame.Rect(random.randint(0, LARGURA - ITEM_LARGURA), random.randint(0, ALTURA - ITEM_ALTURA), ITEM_LARGURA, ITEM_ALTURA)
 item_cor = AZUL
 
+# Variáveis de controle
+inimigos = []
+tempo_de_jogo = 0
+imagem_invertida = False
+
+def criar_inimigo():
+    x = random.randint(0, LARGURA - INIMIGO_LARGURA)
+    y = random.randint(0, ALTURA - INIMIGO_ALTURA)
+    return pygame.Rect(x, y, INIMIGO_LARGURA, INIMIGO_ALTURA)
+
 def desenhar_tudo():
     tela.fill(PRETO)
-    pygame.draw.rect(tela, personagem_cor, personagem)
-    pygame.draw.rect(tela, VERMELHO, inimigo)
+    tela.blit(imagem_personagem, (personagem.x, personagem.y))
+    
+    for inimigo in inimigos:
+        tela.blit(imagem_inimigo, (inimigo.x, inimigo.y))
+    
     pygame.draw.rect(tela, item_cor, item)
 
     texto_personagem = fonte.render(f"Poder do Personagem: {poder_personagem}", True, BRANCO)
-    texto_inimigo = fonte.render(f"Poder do Inimigo: {poder_inimigo}", True, BRANCO)
+    texto_tempo = fonte.render(f"Tempo: {tempo_de_jogo // 1000}s", True, BRANCO)
 
     tela.blit(texto_personagem, (10, 10))
-    tela.blit(texto_inimigo, (10, 50))
+    tela.blit(texto_tempo, (10, 50))
 
     pygame.display.flip()
 
-def cria_novo_inimigo():
-    global inimigo, poder_inimigo
-    poder_inimigo = poder_personagem + 1
-    inimigo.x = random.randint(0, LARGURA - INIMIGO_LARGURA)
-    inimigo.y = random.randint(0, ALTURA - INIMIGO_ALTURA)
-
 def main():
-    global poder_personagem, item
-    clock =pygame.time.Clock()
+    global poder_personagem, tempo_de_jogo, item, imagem_personagem, imagem_invertida
+    clock = pygame.time.Clock()
     rodando = True
     game_over = False
 
-    cria_novo_inimigo()
+    # Criar os primeiros inimigos
+    for _ in range(5):
+        inimigos.append(criar_inimigo())
 
     while rodando:
+        tempo_de_jogo += clock.get_time()
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 rodando = False
@@ -67,39 +78,48 @@ def main():
             teclas = pygame.key.get_pressed()
             if teclas[pygame.K_LEFT]:
                 personagem.x -= velocidade_personagem
-            if teclas[pygame.K_RIGHT]:
+                if not imagem_invertida:
+                    imagem_personagem = pygame.transform.flip(imagem_personagem, True, False)  # Inverter horizontalmente
+                    imagem_invertida = True
+            elif teclas[pygame.K_RIGHT]:
                 personagem.x += velocidade_personagem
+                if imagem_invertida:
+                    imagem_personagem = pygame.transform.flip(imagem_personagem, True, False)  # Reverter a inversão
+                    imagem_invertida = False
+
             if teclas[pygame.K_UP]:
                 personagem.y -= velocidade_personagem
             if teclas[pygame.K_DOWN]:
                 personagem.y += velocidade_personagem
 
-            #movimento do inimigo em direção ao personagem
-            if inimigo.x < personagem.x:
-                inimigo.x += velocidade_inimigo
-            elif inimigo.x > personagem.x:
-                inimigo.x -= velocidade_inimigo
-            
-            if inimigo.y < personagem.y:
-                inimigo.y += velocidade_inimigo
-            elif inimigo.y > personagem.y:
-                inimigo.y -= velocidade_inimigo
-
-            if personagem.colliderect(inimigo):
-                if poder_personagem >= poder_inimigo:
-                    print("Você derrotou o inimgo!")
-                    poder_personagem += poder_inimigo
-                    cria_novo_inimigo()
-                else:
+            # Movimento de cada inimigo em direção ao personagem
+            for inimigo in inimigos:
+                if inimigo.x < personagem.x:
+                    inimigo.x += velocidade_personagem // 2
+                elif inimigo.x > personagem.x:
+                    inimigo.x -= velocidade_personagem // 2
+                
+                if inimigo.y < personagem.y:
+                    inimigo.y += velocidade_personagem // 2
+                elif inimigo.y > personagem.y:
+                    inimigo.y -= velocidade_personagem // 2
+                
+                if personagem.colliderect(inimigo):
                     game_over = True
                     print("Game Over")
-            
+
+            # Colisão com o item de poder
             if personagem.colliderect(item):
                 poder_personagem += 2
                 item.x = random.randint(0, LARGURA - ITEM_LARGURA)
                 item.y = random.randint(0, ALTURA - ITEM_ALTURA)
                 print(f"Você encontrou um item! Seu poder agora é {poder_personagem}")
-        
+
+            # Aumentar a dificuldade ao longo do tempo
+            if tempo_de_jogo % 5000 == 0:  # A cada 5 segundos
+                for _ in range(3):
+                    inimigos.append(criar_inimigo())
+
         desenhar_tudo()
 
         if game_over:
@@ -115,5 +135,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
